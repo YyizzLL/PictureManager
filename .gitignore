@@ -46,6 +46,10 @@ test-output/
 # 测试打包中间产物
 tests/.build/
 
+# 本地启动脚本（个人环境用，不入库）
+dev.cmd
+run.cmd
+
 # 版权与许可证之外的打包缓存
 .cache/
 .eslintcache
