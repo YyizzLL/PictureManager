@@ -1,0 +1,58 @@
+{
+  "name": "picture-manager",
+  "version": "0.1.0",
+  "description": "纯本地照片按日期归档桌面工具",
+  "author": "YyizzLL",
+  "license": "MIT",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:win-dir": "electron-vite build && electron-builder --win --dir -c.electronDist=node_modules/electron/dist -c.directories.output=dist-local",
+    "dist:win-portable": "electron-vite build && electron-builder --win --x64 -c.win.target=zip",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "esbuild tests/flat-placement.test.ts --bundle --platform=node --format=cjs --outfile=tests/.build/flat-placement.test.cjs --alias:electron=./tests/stub-electron.ts --log-level=warning && node tests/.build/flat-placement.test.cjs"
+  },
+  "dependencies": {
+    "exiftool-vendored": "^28.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "electron-vite": "^2.3.0",
+    "esbuild": "^0.21.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  },
+  "build": {
+    "appId": "com.yyizzll.picturemanager",
+    "productName": "PictureManager",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "zip"],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

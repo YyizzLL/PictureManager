@@ -1,0 +1,44 @@
+name: Release
+
+# 推送形如 v0.1.0 的 tag 时自动打包 Windows 安装包与便携版，并上传到 GitHub Releases。
+# 用法：npm version patch && git push --follow-tags
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build and package
+        run: npm run dist:win
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-electron/*.exe
+            dist-electron/*.zip
+          generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

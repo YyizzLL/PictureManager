@@ -1,0 +1,51 @@
+# 依赖
+node_modules/
+
+# 构建产物
+out/
+dist/
+dist-electron/
+dist-local/
+dist-install/
+*.tsbuildinfo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tmp
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+
+# WorkBuddy 项目数据（本地状态，不上传）
+.workbuddy/
+
+# 产品计划（内部文档，不上传）
+PLAN.md
+
+# 运行时产物：整理清单、测试输出（如生成在工作区）
+manifest.json
+manifest.csv
+*_按日期整理/
+test-output/
+
+# 测试打包中间产物
+tests/.build/
+
+# 版权与许可证之外的打包缓存
+.cache/
+.eslintcache
