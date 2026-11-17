@@ -72,7 +72,7 @@ npm run dist:win-dir # 只打免安装目录，产出 dist-local/win-unpacked/Pi
 ```
 
 > 打包若卡在从 GitHub 下载 Electron，可改用 `npm run dist:win-dir`（复用本地 `node_modules/electron/dist`，不联网下载）。
-> 正式发布推荐推送 tag 由 GitHub Actions 打包：`git tag v0.1.0 && git push --follow-tags`，见 `.github/workflows/release.yml`。
+> 正式发布推荐推送 tag 由 GitHub Actions 打包：`git tag v1.0.0 && git push --follow-tags`，见 `.github/workflows/release.yml`。
 
 ## 目录结构
 
