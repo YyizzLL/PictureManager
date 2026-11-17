@@ -30,7 +30,9 @@ jobs:
         run: npm run typecheck
 
       - name: Build and package
-        run: npm run dist:win
+        # --publish never：由下一步 action-gh-release 统一上传，避免 electron-builder
+        # 检测到 tag 后自行发布并要求 GH_TOKEN
+        run: npm run dist:win:ci
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
