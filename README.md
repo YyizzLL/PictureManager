@@ -1,193 +1,200 @@
 # PictureManager
 
-**纯本地的照片按日期归档工具。** 把散落在各个文件夹里的照片，按拍摄日期自动收进 `2020-03-15` 这样的日期文件夹。
+> **Language / 语言**：English ｜ [简体中文](./README.zh-CN.md)
 
-不联网、不登录、不上传任何数据；默认复制、不动原文件。
+**A local-only photo organizer that sorts pictures into folders by date.** Scattered photos are grouped into folders like `2020-03-15` based on when they were taken.
 
-![预览界面](docs/images/02-preview.png)
+No network, no login, no uploads. Copies by default — your originals stay untouched.
 
-## 下载
+![Preview](docs/images/en/02-preview.png)
 
-到 [**Releases**](../../releases) 页面下载最新版，二选一：
+## Download
 
-| 文件 | 说明 |
+Grab the latest build from [**Releases**](../../releases). Pick one:
+
+| File | Description |
 | --- | --- |
-| `PictureManager-*-x64.exe` | **安装版（推荐）**。双击进入安装向导，安装路径可自选，装完桌面和开始菜单有快捷方式 |
-| `PictureManager-*-x64.zip` | **便携版**。解压到任意文件夹，双击 `PictureManager.exe` 即用；不写注册表，删掉文件夹就等于卸载 |
+| `PictureManager-*-x64.exe` | **Installer (recommended)**. A setup wizard lets you choose the install path; desktop and Start menu shortcuts are created |
+| `PictureManager-*-x64.zip` | **Portable build**. Unzip anywhere and run `PictureManager.exe`; no registry entries — deleting the folder is uninstalling |
 
-两个包功能完全相同，只是一个装了、一个没装。目前只提供 Windows 版本，macOS / Linux 可从源码构建（见文末「开发」）。
+Both builds have identical features. Windows only for now; macOS and Linux can be built from source (see [Development](#development)).
 
-## 界面速览
+## UI at a glance
 
-打开后是两个并列入口，按你的场景选一个：
+Two side-by-side entry points — choose by scenario:
 
-![初始界面](docs/images/01-organize.png)
+![Initial screen](docs/images/en/01-organize.png)
 
-右上角常驻两个按钮：**撤销上一次**、**关于 / 说明**。后者把下面所有规则都写进了应用里，随时能查。
+Three buttons stay in the top-right: **language switch (中 / EN)**, **Undo last**, and **About / Help**. The language switch takes effect immediately and remembers your choice. "About / Help" contains all the rules below, available any time in the app.
 
 ---
 
-## 一、整理新照片
+## 1. Organize new photos
 
-把一批散乱的照片按日期重新归位。
+Regroup a messy batch of photos by date.
 
-### 1. 选来源
+### 1.1 Pick sources
 
-点 **选择文件夹**（整目录，可选递归子文件夹）或 **选择照片文件**（可多选）。可以反复添加多个来源，重复的路径会自动跳过。
+Click **Choose folder** (optionally including subfolders) or **Choose photo files** (multiple selection). You can add sources repeatedly; duplicate paths are skipped automatically.
 
-选完点 **查看已选（N）**，能看到每个条目的完整路径、是文件夹还是图片，逐个移除、继续添加或一键清空。
+Afterwards click **View selected (N)** to inspect every entry — full path, whether it's a file or folder — and remove items, add more, or clear everything.
 
-### 2. 选输出方式
+### 1.2 Choose an output mode
 
-| 模式 | 行为 | 原文件 |
+| Mode | Behavior | Originals |
 | --- | --- | --- |
-| ② 指定路径新建（默认） | 复制到目标路径下的日期文件夹 | **完全不动** |
-| ① 原地整理 | 在原目录下建日期文件夹，把文件移进去 | 移动后原位置不再有 |
+| 2. Copy to a chosen folder (default) | Copy into a date folder under the destination | **Untouched** |
+| 1. Organize in place | Create date folders beside each source and move files in | Moved from their original position |
 
-模式①是**移动**，不可自动恢复，选它时界面会额外提示。两种模式只看你点哪个按钮，跟路径位置无关。
+Mode 1 **moves** files and cannot be automatically restored; the UI shows an extra warning. Behavior follows the selected mode, not the path.
 
-### 3. 其他选项
+### 1.3 Other options
 
-- **日期策略**：`A 拍摄优先`（推荐，先看 EXIF 拍摄时间）／`B 保存时间优先`（只看文件创建/修改时间，适合拍摄时间被清掉的图片）
-- **命名形式**：`仅文件夹`（文件名不变）／`文件夹+文件重命名`（可用模板，如 `{YYYY-MM-DD}_{原文件名}`，支持 `{YYYY-MM-DD}`、`{YYYYMMDD_HHMMSS}`、`{原文件名}`、`{序号}`）
-- **非图片元素**：默认跳过，扫描结束会提示发现了多少个非图片文件及前几个的名称
-- **磁盘空间预检**：模式②会自动估算所需空间，不够会提示
+- **Date strategy**: `Capture date first` (recommended — EXIF capture time first) / `Save time first` (file created/modified time only; useful when EXIF was stripped)
+- **Naming**: `Folders only` (filenames unchanged) / `Folders + rename files` (template, e.g. `{YYYY-MM-DD}_{原文件名}`; supported tokens: `{YYYY-MM-DD}`, `{YYYYMMDD_HHMMSS}`, `{原文件名}`, `{序号}`)
+- **Non-image files**: skipped by default; the scan reports how many were found and shows the first few names
+- **Disk space check**: mode 2 estimates the required space and warns if there isn't enough
 
-### 4. 预览确认
+> The Chinese-looking tokens `{原文件名}` and `{序号}` are literal template placeholders in both languages — they must stay exactly as written for renaming to work.
 
-点 **预览**，逐张列出识别结果：
+### 1.4 Preview and confirm
 
-![预览表](docs/images/02-preview.png)
+Click **Preview** to see the recognition result per photo:
 
-每一行能看到缩略图、源文件名、识别出的日期、**日期来源**、**置信度颜色**、目标完整路径。
+![Preview table](docs/images/en/02-preview.png)
 
-- 日期栏可以直接改，改完目标路径实时重算
-- 可以按置信度筛选、全选 / 全不选、单张取消勾选
-- **置信度低的默认不勾选**，需要你确认后再执行
-- 每行右侧「定位」直接在资源管理器里打开原文件
+Each row shows a thumbnail, source filename, detected date, **source**, **confidence color**, and the full destination path.
 
-### 5. 执行
+- The date cell is editable; the destination path recalculates immediately
+- Filter by confidence, select all / none, or toggle individual rows
+- **Low-confidence and conflicting entries are unchecked by default**
+- **Locate** opens the original file in Explorer
 
-点 **确认执行**。过程中有进度条和 **取消** 按钮——取消会把本次已经产生的变化全部回滚。
+### 1.5 Run
 
-完成后弹窗报告成功 / 失败 / 跳过数量，异常图片会列出名称和完整路径，不会静默跳过。
+Click **Confirm and run**. A progress bar and **Cancel** button are shown — cancelling rolls back everything produced by that run.
+
+When done, a report lists succeeded / failed / skipped counts. Problem files are listed with name and full path; nothing is skipped silently.
 
 ---
 
-## 二、添加到文件夹
+## 2. Add to a folder
 
-往一个已经整理好的目录里追加新照片。
+Append new photos to an already organized directory.
 
-### 1. 选目标文件夹
+### 2.1 Pick the target folder
 
-磁盘上任意可写目录都行，不限定某个固定位置。选完会自动识别该目录现有的命名格式并套用。
+Any writable folder works — no fixed location required. Existing date-folder naming is detected and reused.
 
-### 2. 选要添加的图片
+### 2.2 Pick the photos to add
 
-同样支持「选择图片」和「选择文件夹」，**查看已选（N）** 可以核对、增减。
+Both **Choose images** and **Choose folder** are supported. **View selected (N)** lets you review and adjust the list.
 
-### 3. 配置方式（两个并行，不是二选一）
+### 2.3 Configuration mode (two options, not either/or)
 
-- **按钮1 · 跟随目标文件夹现有格式**：从目标目录里已有的日期文件夹反推规则，自动套用
-- **按钮2 · 手动 + 自动**：弹窗里可以给某几张图**手工指定子文件夹名**，被指定的图片退出自动归类池，其余仍按时间戳自动归入
+- **Option 1 · Follow the target folder's existing format**: infer the naming rule from existing date folders
+- **Option 2 · Manual + automatic**: a dialog lets you assign a subfolder name to specific photos. Assigned photos leave the automatic pool; the rest are still sorted by timestamp
 
-### 4. 放入方式（关键）
+### 2.4 Placement (important)
 
-这里决定新图片是**直接躺在目标文件夹里**，还是**再按日期分层**：
+This decides whether photos go straight into the target folder or into date subfolders:
 
-| 选项 | 结果 |
+| Option | Result |
 | --- | --- |
-| 按图片日期在目标文件夹内新建子文件夹 | 例：`归档/2021-07-08/xxx.jpg` |
-| 直接放入目标文件夹（无视日期差异） | 例：`归档/xxx.jpg`，不再建子文件夹 |
+| Create date subfolders inside the target folder | e.g. `Archive/2021-07-08/xxx.jpg` |
+| Place directly in the target folder (ignore date differences) | e.g. `Archive/xxx.jpg`, no subfolder created |
 
-选了「直接放入」后，日期不再参与分类，所以**日期栏会自动置灰禁用**，表头变成「日期（不参与分类）」；手动配置弹窗也会一并禁用，避免你填了却不生效：
+With direct placement, dates no longer participate in sorting: the **date column is greyed out and disabled**, its header becomes "Date (not used)", and the manual-assignment dialog is disabled too — so you can't fill in something that would have no effect:
 
-![直接放入模式](docs/images/04-flat.png)
+![Direct placement](docs/images/en/04-flat.png)
 
-默认「按日期新建子文件夹」时，日期栏是可编辑的白色输入框：
+In the default date-subfolder mode, the date column is an editable white input:
 
-![按日期模式](docs/images/03-append.png)
+![Date mode](docs/images/en/03-append.png)
 
 ---
 
-## 时间来源与置信度
+## Date sources and confidence
 
-照片的日期可能藏在很多地方。工具按可信度**从高到低**依次尝试，取第一个命中的：
+A photo's date can hide in many places. The tool tries these **from most to least reliable** and takes the first hit:
 
-| 顺序 | 来源 | 典型场景 | 置信度 |
+| Order | Source | Typical case | Confidence |
 | --- | --- | --- | --- |
-| 1 | EXIF 拍摄时间 | 相机、手机原图 | 🟢 高 |
-| 2 | EXIF 数字化时间 | 扫描件 | 🟡 中 |
-| 3 | EXIF 时间 | 修图软件写过 | 🟡 中 |
-| 4 | XMP 旁车文件 | Lightroom 等 | 🟡 中 |
-| 5 | 文件名中的日期 | `IMG_20200315`、`wx_camera_1587…`、`Screenshot_2022-05-20` | 🟡 中 |
-| 6 | 文件创建时间 | 微信/QQ 存的图 | 🟡 中 |
-| 7 | 文件修改时间 | 兜底 | 🔴 低 |
+| 1 | EXIF capture time | Camera / phone originals | 🟢 High |
+| 2 | EXIF digitized time | Scans | 🟡 Medium |
+| 3 | EXIF time | Re-saved by an editor | 🟡 Medium |
+| 4 | XMP sidecar | Lightroom and friends | 🟡 Medium |
+| 5 | Date in filename | `IMG_20200315`, `wx_camera_1587…`, `Screenshot_2022-05-20` | 🟡 Medium |
+| 6 | File creation time | Images saved from WeChat / QQ | 🟡 Medium |
+| 7 | File modification time | Last resort | 🔴 Low |
 
-**冲突判定**：只有前 5 类（可信来源）之间相差超过 1 天才算冲突，标成 🟣 紫色，默认不勾选。文件系统时间不参与冲突比对，避免截图、下载图被误报。
+**Conflict rule**: only the first five (trustworthy) sources are compared; a difference of more than 1 day is flagged 🟣 purple and unchecked by default. Filesystem timestamps do not participate, so screenshots and downloads aren't falsely flagged.
 
-**异常日期**：识别不出或明显异常的，统一归入 `0000-00-00` 文件夹，不会丢文件。
-
----
-
-## 安全与撤销
-
-- **撤销只认最近一次**，按钮旁有标注。关掉软件再打开仍然可用
-- **不在你的文件夹里留任何文件**：撤销所需的操作记录存在应用自己的数据目录 `%APPDATA%\picture-manager\`，你的照片文件夹里不会多出 `manifest.json` 之类的文件
-- 撤销时会先校验目标文件未被改动过（SHA256），已经被你改过的文件不会被误删
-- **执行中不要关闭软件**，工具不做中断恢复；中途想停请用「取消」按钮，它会回滚
-
-![关于说明](docs/images/05-about.png)
-
-## 常见问题
-
-**Q：会联网吗？会上传我的照片吗？**
-不会。所有处理都在本机完成，程序不包含任何网络请求。
-
-**Q：照片会被改坏吗？**
-默认模式②只读原文件、只做复制。只有你主动选模式①才会移动，且移动是同一磁盘内的重命名操作，不重写数据。
-
-**Q：文件名会变吗？**
-「命名形式 = 仅文件夹」时文件名不动。选「文件夹+文件重命名」才会按模板改名，且非法字符（`\/:*?"<>|`）会被替换、超长名称会被截断。
-
-**Q：重名文件怎么办？**
-自动加序号：`IMG_001.jpg` → `IMG_001_1.jpg`，不会覆盖。
-
-**Q：支持哪些格式？**
-JPG / JPEG / PNG / GIF / BMP / TIFF / WEBP / AVIF / JXL / HEIC / HEIF，以及 RAW：CR2 / CR3 / NEF / ARW / DNG / ORF / RAF / RW2 / PEF / SRW / 3FR / IIQ。同名的 `.xmp` 旁车文件、iPhone 实况照片的 `.mov` 会跟着主图一起归档。
-
-**Q：为什么有些图被归到 0000-00-00？**
-说明它的 EXIF、文件名、创建时间里都找不到可信日期。可以在预览表里手动改日期后再执行。
+**Invalid dates**: missing or clearly invalid dates go into a `0000-00-00` folder — nothing gets lost.
 
 ---
 
-## 开发
+## Safety and undo
+
+- **Undo covers the most recent run only**, clearly labeled. It still works after restarting the app
+- **Nothing is written into your photo folders**: the undo manifest lives in the app data directory `%APPDATA%\picture-manager\` — you won't find a `manifest.json` next to your pictures
+- Undo verifies target files haven't been modified (SHA256) so files you edited afterwards are never deleted by mistake
+- **Do not close the app during a run** — there is no resume. To stop early, use **Cancel**, which rolls back
+
+![About / Help](docs/images/en/05-about.png)
+
+## FAQ
+
+**Q: Does it connect to the internet or upload my photos?**
+No. Everything runs locally and the app contains no network requests.
+
+**Q: Can photos be damaged?**
+In the default mode 2, originals are read-only and only copied. Only mode 1 moves files — a rename within the same disk, with no data rewriting.
+
+**Q: Will filenames change?**
+Not with `Naming = Folders only`. With `Folders + rename files`, the template applies; illegal characters (`\/:*?"<>|`) are replaced and overlong names are truncated.
+
+**Q: What about duplicate names?**
+A number is appended: `IMG_001.jpg` → `IMG_001_1.jpg`. Nothing is overwritten.
+
+**Q: Which formats are supported?**
+JPG / JPEG / PNG / GIF / BMP / TIFF / WEBP / AVIF / JXL / HEIC / HEIF, plus RAW: CR2 / CR3 / NEF / ARW / DNG / ORF / RAF / RW2 / PEF / SRW / 3FR / IIQ. Matching `.xmp` sidecars and iPhone Live Photo `.mov` files follow their main image.
+
+**Q: Why did some photos land in `0000-00-00`?**
+No trustworthy date was found in EXIF, filename, or creation time. Edit the date in the preview table before running.
+
+**Q: How do I switch languages?**
+Click the **中 / EN** button in the top-right. The choice is remembered. All dialogs and error messages follow the selected language.
+
+---
+
+## Development
 
 ```bash
-npm install          # 安装依赖（首次需联网下载 exiftool 二进制）
-npm run dev          # 开发模式启动
-npm run typecheck    # 类型检查
-npm test             # 执行器回归测试（验证放入方式是否正确落盘）
-npm run build        # 构建
-npm run dist:win     # 打包 Windows：安装包 exe + 便携版 zip
+npm install          # install dependencies (first run downloads the exiftool binary)
+npm run dev          # start in development mode
+npm run typecheck    # type check
+npm test             # organizer regression tests (placement behavior)
+npm run build        # build
+npm run dist:win     # package Windows installer + portable zip
 ```
 
-技术栈：Electron + TypeScript + React + Vite，EXIF 读取用 exiftool。
+Stack: Electron + TypeScript + React + Vite; EXIF via exiftool. Interface strings live in `src/shared/i18n.ts` and are shared by the main and renderer processes.
 
-> 打包若卡在从 GitHub 下载 Electron，可改用 `npm run dist:win-dir`（复用本地 `node_modules/electron/dist`，不联网）。
-> 正式发布推荐推 tag 让 GitHub Actions 打包：`git tag v1.0.0 && git push --follow-tags`，见 `.github/workflows/release.yml`。
+> If packaging stalls while downloading Electron, use `npm run dist:win-dir` (reuses local `node_modules/electron/dist`, no network).
+> For a release, push a tag and let GitHub Actions package it: `git tag v1.1.0 && git push --follow-tags`, see `.github/workflows/release.yml`.
 
-## 目录结构
+## Project structure
 
 ```
 src/
-├── main/         主进程：扫描、日期识别、归档执行、清单撤销
-├── preload/      预加载：向渲染进程暴露受控 API
-├── renderer/     渲染进程：React 界面（预览表、配置弹窗、说明卡片）
-└── shared/       主/渲染共享的类型定义
-docs/images/      README 截图
+├── main/          main process: scanning, date detection, organizing, undo manifest
+├── preload/       controlled IPC bridge to the renderer
+├── renderer/      React UI (preview table, dialogs, help card)
+└── shared/        shared types and the Chinese/English message catalog
+docs/images/       screenshots for README.zh-CN.md (English in docs/images/en/)
 ```
 
-## 许可证
+## License
 
-MIT © 2026 YyizzLL。详见 [LICENSE](./LICENSE)。
+MIT © 2026 YyizzLL. See [LICENSE](./LICENSE).

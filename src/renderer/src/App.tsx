@@ -1,31 +1,53 @@
 /**
- * 主窗口 UI（P0）
+ * 主窗口 UI
  * 两个并列入口：整理新照片 / 添加到文件夹；关于卡片；结果报告与撤销。
+ * 所有可见文案经 src/shared/i18n.ts 切换中英，业务逻辑不随语言变化。
  */
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import {
+  createContext, useCallback, useContext, useEffect, useState,
+  type Dispatch, type ReactNode, type SetStateAction
+} from 'react'
 import {
   OutputMode, NamingMode, SortStrategy, NonImageStrategy, Confidence, DateSource, AddPlacement,
   type PhotoEntry, type OrganizeConfig, type ScanResult, type RunReport,
   type ProgressInfo
 } from '../../shared/types'
+import { t, detectLang, type Lang, type MessageKey } from '../../shared/i18n'
 
 type Tab = 'organize' | 'append'
 
-const confidenceLabel: Record<string, string> = {
-  [Confidence.High]: '高·拍摄时间',
-  [Confidence.Medium]: '中·其他来源',
-  [Confidence.Low]: '低·修改时间',
-  [Confidence.Conflict]: '冲突'
+const LANG_KEY = 'picture-manager-lang'
+const LangContext = createContext<Lang>('zh-CN')
+
+function useI18n() {
+  const lang = useContext(LangContext)
+  const tr = useCallback(
+    (key: MessageKey, vars?: Record<string, string | number>) => t(lang, key, vars),
+    [lang]
+  )
+  return { lang, tr }
 }
-const sourceLabel: Record<string, string> = {
-  [DateSource.ExifDateTimeOriginal]: 'EXIF拍摄',
-  [DateSource.ExifDateTimeDigitized]: 'EXIF数字化',
-  [DateSource.ExifDateTime]: 'EXIF时间',
-  [DateSource.XmpSidecar]: 'XMP',
-  [DateSource.Filename]: '文件名',
-  [DateSource.Birthtime]: '创建时间',
-  [DateSource.Mtime]: '修改时间',
-  [DateSource.None]: '无'
+
+/** 极简富文本：**粗体**、`代码`、[[high]]彩色[[/]]。内容来自本地词库，非用户输入。 */
+function Rich({ text }: { text: string }) {
+  const nodes: ReactNode[] = []
+  const tokens = text.split(/(\[\[(?:high|medium|low|conflict)\]\]|\[\[\/\]\]|\*\*|`)/g)
+  let mode: 'b' | 'code' | 'high' | 'medium' | 'low' | 'conflict' | null = null
+  let i = 0
+  for (const part of tokens) {
+    if (!part) continue
+    if (part === '**') { mode = mode === 'b' ? null : 'b'; continue }
+    if (part === '`') { mode = mode === 'code' ? null : 'code'; continue }
+    if (part === '[[/]]') { mode = null; continue }
+    const colored = /^\[\[(high|medium|low|conflict)\]\]$/.exec(part)
+    if (colored) { mode = colored[1] as 'high' | 'medium' | 'low' | 'conflict'; continue }
+    const key = i++
+    if (mode && mode !== 'b' && mode !== 'code') nodes.push(<b key={key} className={mode}>{part}</b>)
+    else if (mode === 'b') nodes.push(<b key={key}>{part}</b>)
+    else if (mode === 'code') nodes.push(<code key={key}>{part}</code>)
+    else nodes.push(<span key={key}>{part}</span>)
+  }
+  return <>{nodes}</>
 }
 
 function fmtSize(n: number): string {
@@ -81,36 +103,39 @@ function SelectedInputs({ paths, onChange, onClose, onAddFiles, onAddFolder }: {
   onAddFiles: () => void
   onAddFolder: () => void
 }) {
+  const { tr } = useI18n()
   const fileCount = paths.filter(isFilePath).length
   const dirCount = paths.length - fileCount
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card inputs-card" onClick={(e) => e.stopPropagation()}>
-        <h2>已选来源（{paths.length}）</h2>
+        <h2>{tr('selectedTitle', { n: paths.length })}</h2>
         <p className="hint">
-          共 {paths.length} 项：图片文件 {fileCount} 个、文件夹 {dirCount} 个。可在此继续添加或逐个移除，重复路径不会重复加入。
+          {tr('selectedSummary', { n: paths.length, f: fileCount, d: dirCount })}
         </p>
 
         {paths.length === 0
-          ? <p className="hint empty-tip">还没有选择任何图片或文件夹，点下方按钮添加。</p>
+          ? <p className="hint empty-tip">{tr('selectedEmpty')}</p>
           : (
             <div className="inputs-list">
               {paths.map((p, i) => (
                 <div className="inputs-item" key={`${p}#${i}`}>
-                  <span className={`kind ${isFilePath(p) ? 'file' : 'dir'}`}>{isFilePath(p) ? '图片' : '文件夹'}</span>
+                  <span className={`kind ${isFilePath(p) ? 'file' : 'dir'}`}>
+                    {isFilePath(p) ? tr('kindFile') : tr('kindDir')}
+                  </span>
                   <span className="path" title={p}>{p}</span>
-                  <button className="mini" onClick={() => window.electronAPI.showInExplorer(p)}>定位</button>
-                  <button className="mini danger" onClick={() => onChange(paths.filter((_, j) => j !== i))}>移除</button>
+                  <button className="mini" onClick={() => window.electronAPI.showInExplorer(p)}>{tr('locate')}</button>
+                  <button className="mini danger" onClick={() => onChange(paths.filter((_, j) => j !== i))}>{tr('remove')}</button>
                 </div>
               ))}
             </div>
           )}
 
         <div className="row modal-actions">
-          <button onClick={onAddFiles}>添加图片</button>
-          <button onClick={onAddFolder}>添加文件夹</button>
-          {paths.length > 0 && <button className="danger" onClick={() => onChange([])}>清空全部</button>}
-          <button className="primary" onClick={onClose}>完成</button>
+          <button onClick={onAddFiles}>{tr('addImages')}</button>
+          <button onClick={onAddFolder}>{tr('addFolder')}</button>
+          {paths.length > 0 && <button className="danger" onClick={() => onChange([])}>{tr('clearAll')}</button>}
+          <button className="primary" onClick={onClose}>{tr('done')}</button>
         </div>
       </div>
     </div>
@@ -135,39 +160,66 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('organize')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [toast, setToast] = useState<string>('')
+  const [lang, setLangState] = useState<Lang>(() => {
+    try {
+      const saved = localStorage.getItem(LANG_KEY)
+      if (saved === 'zh-CN' || saved === 'en') return saved
+    } catch { /* localStorage 不可用时按系统语言 */ }
+    return detectLang()
+  })
+
+  const syncLang = useCallback((next: Lang) => {
+    setLangState(next)
+    try { localStorage.setItem(LANG_KEY, next) } catch { /* 忽略存储失败 */ }
+    void window.electronAPI.setLanguage(next)
+  }, [])
+
+  useEffect(() => { void window.electronAPI.setLanguage(lang) }, [lang])
 
   const notify = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(''), 4000)
   }
 
+  // App 自身在 Provider 之上，直接按 state 取词；子组件用 useI18n()
+  const tr = useCallback(
+    (key: MessageKey, vars?: Record<string, string | number>) => t(lang, key, vars),
+    [lang]
+  )
+  const toggleLang = () => syncLang(lang === 'zh-CN' ? 'en' : 'zh-CN')
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <h1>PictureManager</h1>
-        <div className="top-actions">
-          <button title="仅能撤销最近一次操作" onClick={async () => {
-            const ok = await window.electronAPI.undo()
-            notify(ok ? '已撤销上一次操作' : '没有可撤销的操作，或部分文件已被改动')
-          }}>撤销上一次</button>
-          <button className="about-btn" onClick={() => setAboutOpen(true)}>关于 / 说明</button>
-        </div>
-      </header>
+    <LangContext.Provider value={lang}>
+      <div className="app">
+        <header className="topbar">
+          <h1>PictureManager</h1>
+          <div className="top-actions">
+            <button id="lang-toggle" onClick={toggleLang} title="Switch language / 切换语言">
+              {lang === 'zh-CN' ? tr('switchToEnglish') : tr('switchToChinese')}
+            </button>
+            <button title={tr('undoTitle')} onClick={async () => {
+              const ok = await window.electronAPI.undo()
+              notify(ok ? tr('undoOk') : tr('undoFail'))
+            }}>{tr('undo')}</button>
+            <button className="about-btn" onClick={() => setAboutOpen(true)}>{tr('about')}</button>
+          </div>
+        </header>
 
-      <nav className="tabs">
-        <button className={tab === 'organize' ? 'active' : ''} onClick={() => setTab('organize')}>整理新照片</button>
-        <button className={tab === 'append' ? 'active' : ''} onClick={() => setTab('append')}>添加到文件夹</button>
-      </nav>
+        <nav className="tabs">
+          <button className={tab === 'organize' ? 'active' : ''} onClick={() => setTab('organize')}>{tr('tabOrganize')}</button>
+          <button className={tab === 'append' ? 'active' : ''} onClick={() => setTab('append')}>{tr('tabAppend')}</button>
+        </nav>
 
-      <main className="content">
-        {tab === 'organize'
-          ? <OrganizePanel notify={notify} />
-          : <AppendPanel notify={notify} />}
-      </main>
+        <main className="content">
+          {tab === 'organize'
+            ? <OrganizePanel notify={notify} />
+            : <AppendPanel notify={notify} />}
+        </main>
 
-      {aboutOpen && <AboutCard onClose={() => setAboutOpen(false)} />}
-      {toast && <div className="toast">{toast}</div>}
-    </div>
+        {aboutOpen && <AboutCard onClose={() => setAboutOpen(false)} />}
+        {toast && <div className="toast">{toast}</div>}
+      </div>
+    </LangContext.Provider>
   )
 }
 
@@ -175,43 +227,45 @@ function ConfigFields({ config, setConfig }: {
   config: OrganizeConfig
   setConfig: (c: OrganizeConfig) => void
 }) {
+  const { tr } = useI18n()
   const patch = (p: Partial<OrganizeConfig>) => setConfig({ ...config, ...p })
   return (
     <div className="config-grid">
-      <label>输出模式
+      <label>{tr('outputMode')}
         <select value={config.outputMode} onChange={(e) => patch({ outputMode: e.target.value as OutputMode })}>
-          <option value={OutputMode.CopyToNew}>② 指定路径新建（复制，原文件不动）</option>
-          <option value={OutputMode.InPlace}>① 原目录整理（移动，不复制）</option>
+          <option value={OutputMode.CopyToNew}>{tr('modeCopy')}</option>
+          <option value={OutputMode.InPlace}>{tr('modeInPlace')}</option>
         </select>
       </label>
-      <label>日期策略
+      <label>{tr('dateStrategy')}
         <select value={config.sortStrategy} onChange={(e) => patch({ sortStrategy: e.target.value as SortStrategy })}>
-          <option value={SortStrategy.CaptureFirst}>A 拍摄优先（推荐）</option>
-          <option value={SortStrategy.SaveTimeFirst}>B 保存时间优先</option>
+          <option value={SortStrategy.CaptureFirst}>{tr('strategyCapture')}</option>
+          <option value={SortStrategy.SaveTimeFirst}>{tr('strategySave')}</option>
         </select>
       </label>
-      <label>命名形式
+      <label>{tr('namingMode')}
         <select value={config.namingMode} onChange={(e) => patch({ namingMode: e.target.value as NamingMode })}>
-          <option value={NamingMode.FolderOnly}>仅文件夹（文件名不变）</option>
-          <option value={NamingMode.FolderAndFile}>文件夹 + 文件重命名</option>
+          <option value={NamingMode.FolderOnly}>{tr('nameFolderOnly')}</option>
+          <option value={NamingMode.FolderAndFile}>{tr('nameFolderAndFile')}</option>
         </select>
       </label>
       {config.namingMode === NamingMode.FolderAndFile && (
-        <label>命名模板
+        <label>{tr('nameTemplate')}
+          {/* 模板 token 会写进文件名，两种语言都保持原样 */}
           <input value={config.nameTemplate || ''} placeholder="{YYYY-MM-DD}_{原文件名}"
             onChange={(e) => patch({ nameTemplate: e.target.value })} />
         </label>
       )}
       <label className="checkbox">
         <input type="checkbox" checked={config.recursive} onChange={(e) => patch({ recursive: e.target.checked })} />
-        递归扫描子文件夹
+        {tr('recursive')}
       </label>
-      <label>非图片元素
+      <label>{tr('nonImage')}
         <select value={config.nonImageStrategy || NonImageStrategy.Skip}
           onChange={(e) => patch({ nonImageStrategy: e.target.value as NonImageStrategy })}>
-          <option value={NonImageStrategy.Skip}>跳过（仅提示）</option>
-          <option value={NonImageStrategy.ToOtherFolder}>按修改时间归入"其他文件/"</option>
-          <option value={NonImageStrategy.ByExtension}>按扩展名归入"其他文件/"</option>
+          <option value={NonImageStrategy.Skip}>{tr('nonImageSkip')}</option>
+          <option value={NonImageStrategy.ToOtherFolder}>{tr('nonImageOtherMtime')}</option>
+          <option value={NonImageStrategy.ByExtension}>{tr('nonImageOtherExt')}</option>
         </select>
       </label>
     </div>
@@ -231,6 +285,7 @@ function PreviewTable({ entries, setEntries, onShowInExplorer, onRecalc, dateEdi
    */
   dateEditable?: boolean
 }) {
+  const { tr } = useI18n()
   const [filter, setFilter] = useState<string>('all')
   const shown = entries.filter((e) => filter === 'all' || e.confidence === filter)
   const patch = (id: string, p: Partial<PhotoEntry>) => setEntries(entries.map((e) => {
@@ -241,28 +296,49 @@ function PreviewTable({ entries, setEntries, onShowInExplorer, onRecalc, dateEdi
     return next
   }))
 
+  const confidenceLabel: Record<string, string> = {
+    [Confidence.High]: tr('confHigh'),
+    [Confidence.Medium]: tr('confMedium'),
+    [Confidence.Low]: tr('confLow'),
+    [Confidence.Conflict]: tr('confConflict')
+  }
+  const sourceLabel: Record<string, string> = {
+    [DateSource.ExifDateTimeOriginal]: tr('srcExifOriginal'),
+    [DateSource.ExifDateTimeDigitized]: tr('srcExifDigitized'),
+    [DateSource.ExifDateTime]: tr('srcExif'),
+    [DateSource.XmpSidecar]: tr('srcXmp'),
+    [DateSource.Filename]: tr('srcFilename'),
+    [DateSource.Birthtime]: tr('srcBirthtime'),
+    [DateSource.Mtime]: tr('srcMtime'),
+    [DateSource.None]: tr('srcNone')
+  }
+
   return (
     <div className="preview">
       <div className="preview-toolbar">
-        <span>共 {entries.length} 张</span>
-        <span className="dot high">高 {entries.filter((e) => e.confidence === Confidence.High).length}</span>
-        <span className="dot medium">中 {entries.filter((e) => e.confidence === Confidence.Medium).length}</span>
-        <span className="dot low">低 {entries.filter((e) => e.confidence === Confidence.Low).length}</span>
-        <span className="dot conflict">冲突 {entries.filter((e) => e.confidence === Confidence.Conflict).length}</span>
+        <span>{tr('totalPhotos', { n: entries.length })}</span>
+        <span className="dot high">{tr('high')} {entries.filter((e) => e.confidence === Confidence.High).length}</span>
+        <span className="dot medium">{tr('medium')} {entries.filter((e) => e.confidence === Confidence.Medium).length}</span>
+        <span className="dot low">{tr('low')} {entries.filter((e) => e.confidence === Confidence.Low).length}</span>
+        <span className="dot conflict">{tr('conflict')} {entries.filter((e) => e.confidence === Confidence.Conflict).length}</span>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">全部</option>
-          <option value={Confidence.High}>仅高</option>
-          <option value={Confidence.Medium}>仅中</option>
-          <option value={Confidence.Low}>仅低</option>
-          <option value={Confidence.Conflict}>仅冲突</option>
+          <option value="all">{tr('filterAll')}</option>
+          <option value={Confidence.High}>{tr('filterOnlyHigh')}</option>
+          <option value={Confidence.Medium}>{tr('filterOnlyMedium')}</option>
+          <option value={Confidence.Low}>{tr('filterOnlyLow')}</option>
+          <option value={Confidence.Conflict}>{tr('filterOnlyConflict')}</option>
         </select>
-        <button onClick={() => setEntries(entries.map((e) => ({ ...e, selected: true })))}>全选</button>
-        <button onClick={() => setEntries(entries.map((e) => ({ ...e, selected: false })))}>全不选</button>
+        <button onClick={() => setEntries(entries.map((e) => ({ ...e, selected: true })))}>{tr('selectAll')}</button>
+        <button onClick={() => setEntries(entries.map((e) => ({ ...e, selected: false })))}>{tr('selectNone')}</button>
       </div>
       <div className="table-wrap">
         <table className="preview-table">
           <thead>
-            <tr><th></th><th>缩略图</th><th>源文件名</th><th>{dateEditable ? '日期（可改）' : '日期（不参与分类）'}</th><th>来源</th><th>置信度</th><th>目标路径</th><th></th></tr>
+            <tr>
+              <th></th><th>{tr('thumb')}</th><th>{tr('sourceName')}</th>
+              <th>{dateEditable ? tr('dateEditable') : tr('dateNotUsed')}</th>
+              <th>{tr('source')}</th><th>{tr('confidence')}</th><th>{tr('targetPath')}</th><th></th>
+            </tr>
           </thead>
           <tbody>
             {shown.map((e) => (
@@ -270,28 +346,27 @@ function PreviewTable({ entries, setEntries, onShowInExplorer, onRecalc, dateEdi
                 <td><input type="checkbox" checked={e.selected} onChange={(ev) => patch(e.id, { selected: ev.target.checked })} /></td>
                 <td>
                   {e.thumbnail
-                    ? <img src={e.thumbnail} className="thumb" alt="缩略图" />
-                    : <div className="thumb placeholder">无预览</div>}
+                    ? <img src={e.thumbnail} className="thumb" alt={tr('thumb')} />
+                    : <div className="thumb placeholder">{tr('noPreview')}</div>}
                 </td>
                 <td className="path" title={e.sourcePath}>{basename(e.sourcePath)}</td>
                 <td>
                   {dateEditable
-                    ? <input className="date-input" value={e.date} title="修改后会重新计算目标文件夹"
+                    ? <input className="date-input" value={e.date} title={tr('dateInputTitle')}
                         onChange={(ev) => patch(e.id, { date: ev.target.value })} />
-                    : <input className="date-input readonly" value={e.date} disabled
-                        title="当前放入方式为「直接放入目标文件夹」，不新建日期子文件夹，因此日期不参与分类" />}
+                    : <input className="date-input readonly" value={e.date} disabled title={tr('dateDisabledTitle')} />}
                 </td>
-                <td>{sourceLabel[e.source] || e.source}{e.manual ? ' ·手动' : ''}</td>
+                <td>{sourceLabel[e.source] || e.source}{e.manual ? tr('manualMark') : ''}</td>
                 <td><span className={`badge ${e.confidence}`}>{confidenceLabel[e.confidence] || e.confidence}</span></td>
                 <td className="path" title={e.targetPath}>
                   {e.targetPath}
                   {e.dateMismatch && (
-                    <span className="date-mismatch" title={`图片自身日期 ${e.date} 与目标文件夹 ${e.targetFolderDate} 不符；按你的选择直接放入，请自行确认`}>
-                      ⚠ 日期不符（{e.date} ≠ {e.targetFolderDate}）
+                    <span className="date-mismatch" title={tr('dateMismatchTitle', { a: e.date, b: e.targetFolderDate ?? '' })}>
+                      {tr('dateMismatch', { a: e.date, b: e.targetFolderDate ?? '' })}
                     </span>
                   )}
                 </td>
-                <td><button className="mini" onClick={() => onShowInExplorer(e.sourcePath)}>定位</button></td>
+                <td><button className="mini" onClick={() => onShowInExplorer(e.sourcePath)}>{tr('locate')}</button></td>
               </tr>
             ))}
           </tbody>
@@ -302,6 +377,7 @@ function PreviewTable({ entries, setEntries, onShowInExplorer, onRecalc, dateEdi
 }
 
 function useRunner(notify: (m: string) => void) {
+  const { tr } = useI18n()
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<ProgressInfo>({ done: 0, total: 0 })
   const [report, setReport] = useState<RunReport | null>(null)
@@ -317,54 +393,57 @@ function useRunner(notify: (m: string) => void) {
     try {
       const r = await window.electronAPI.run(entries, config)
       setReport(r)
-      notify(`完成：成功 ${r.succeeded} / 失败 ${r.failed} / 跳过 ${r.skipped}。可点顶部「撤销上一次」回退本次。`)
+      notify(tr('runDone', { s: r.succeeded, f: r.failed, k: r.skipped }))
     } catch (e) {
-      notify(`执行失败：${e instanceof Error ? e.message : String(e)}`)
+      notify(tr('runFail', { msg: e instanceof Error ? e.message : String(e) }))
     } finally {
       setRunning(false)
     }
-  }, [notify])
+  }, [notify, tr])
 
   const cancel = useCallback(async () => {
     await window.electronAPI.cancel()
-    notify('已请求取消，正在回滚…')
-  }, [notify])
+    notify(tr('cancelRequested'))
+  }, [notify, tr])
 
   return { running, progress, report, setReport, run, cancel }
 }
 
 function ReportPanel({ report, onClose }: { report: RunReport; onClose: () => void }) {
+  const { tr } = useI18n()
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card report" onClick={(e) => e.stopPropagation()}>
-        <h2>执行结果</h2>
-        <p>成功 {report.succeeded} · 失败 {report.failed} · 跳过 {report.skipped}</p>
+        <h2>{tr('reportTitle')}</h2>
+        <p>{tr('reportSummary', { s: report.succeeded, f: report.failed, k: report.skipped })}</p>
         {report.errors.length > 0 && (
           <>
-            <h3>异常文件</h3>
+            <h3>{tr('errorsTitle')}</h3>
             <ul className="error-list">
               {report.errors.map((e, i) => <li key={i}><b>{e.name}</b><br /><code>{e.path}</code><br /><span>{e.reason}</span></li>)}
             </ul>
           </>
         )}
-        <button onClick={onClose}>关闭</button>
+        <button onClick={onClose}>{tr('close')}</button>
       </div>
     </div>
   )
 }
 
 function ProgressBar({ progress, onCancel }: { progress: ProgressInfo; onCancel: () => void }) {
+  const { tr } = useI18n()
   const pct = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <div className="progress">
-      <div className="progress-text">正在整理 {progress.done}/{progress.total}（请勿关闭或退出工具）</div>
+      <div className="progress-text">{tr('progressText', { d: progress.done, t: progress.total })}</div>
       <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
-      <button onClick={onCancel}>取消（将回滚本次变化）</button>
+      <button onClick={onCancel}>{tr('cancelProgress')}</button>
     </div>
   )
 }
 
 function OrganizePanel({ notify }: { notify: (m: string) => void }) {
+  const { tr, lang } = useI18n()
   const [config, setConfig] = useState<OrganizeConfig>({
     inputPaths: [], outputMode: OutputMode.CopyToNew, sortStrategy: SortStrategy.CaptureFirst,
     namingMode: NamingMode.FolderOnly, recursive: true, nonImageStrategy: NonImageStrategy.Skip,
@@ -376,13 +455,14 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
   const [scanning, setScanning] = useState(false)
   const [inputsOpen, setInputsOpen] = useState(false)
   const { running, progress, report, setReport, run, cancel } = useRunner(notify)
+  const sep = lang === 'zh-CN' ? '、' : ', '
 
   const addDir = async () => {
     const d = await window.electronAPI.selectDirectory()
     if (!d) return
     const next = mergePaths(config.inputPaths, [d])
     setConfig((c) => ({ ...c, inputPaths: next }))
-    if (next.length === config.inputPaths.length) notify('该文件夹已在列表中，未重复添加')
+    if (next.length === config.inputPaths.length) notify(tr('duplicateFolder'))
   }
   const addFiles = async () => {
     const fs = await window.electronAPI.selectFiles()
@@ -390,7 +470,7 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
     const next = mergePaths(config.inputPaths, fs)
     const skipped = fs.length - (next.length - config.inputPaths.length)
     setConfig((c) => ({ ...c, inputPaths: next }))
-    if (skipped > 0) notify(`已添加 ${fs.length - skipped} 项，跳过 ${skipped} 个重复项`)
+    if (skipped > 0) notify(tr('addedSkipped', { a: fs.length - skipped, s: skipped }))
   }
   const pickOutput = async () => {
     const d = await window.electronAPI.selectDirectory()
@@ -398,8 +478,8 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
   }
 
   const doScan = async () => {
-    if (!config.inputPaths.length) { notify('请先选择照片或文件夹'); return }
-    if (config.outputMode === OutputMode.CopyToNew && !config.outputDir) { notify('请选择输出文件夹'); return }
+    if (!config.inputPaths.length) { notify(tr('needInput')); return }
+    if (config.outputMode === OutputMode.CopyToNew && !config.outputDir) { notify(tr('needOutput')); return }
     setScanning(true)
     setScanned(false)
     try {
@@ -407,12 +487,15 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
       setScanResult(r)
       setEntries(r.images)
       setScanned(true)
-      if (!r.images.length) notify('没有可整理的文件')
-      else notify(`识别到 ${r.images.length} 张图片，请在下方预览并确认`)
-      if (r.nonImages.length) notify(`发现 ${r.nonImages.length} 个非图片文件：${r.nonImages.slice(0, 3).map(basename).join('、')}${r.nonImages.length > 3 ? '…' : ''}`)
-      if (r.disk && !r.disk.enough) notify(`磁盘空间可能不足：需要约 ${fmtSize(r.disk.required)}`)
+      if (!r.images.length) notify(tr('noFiles'))
+      else notify(tr('recognized', { n: r.images.length }))
+      if (r.nonImages.length) {
+        const names = r.nonImages.slice(0, 3).map(basename).join(sep)
+        notify(tr('nonImages', { n: r.nonImages.length, names, more: r.nonImages.length > 3 ? '…' : '' }))
+      }
+      if (r.disk && !r.disk.enough) notify(tr('diskLowToast', { n: fmtSize(r.disk.required) }))
     } catch (e) {
-      notify(`预览失败：${e instanceof Error ? e.message : String(e)}`)
+      notify(tr('previewFail', { msg: e instanceof Error ? e.message : String(e) }))
     } finally {
       setScanning(false)
     }
@@ -421,17 +504,17 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
   return (
     <section>
       <div className="row">
-        <button onClick={addDir}>选择文件夹</button>
-        <button onClick={addFiles}>选择照片文件</button>
+        <button onClick={addDir}>{tr('selectFolder')}</button>
+        <button onClick={addFiles}>{tr('selectPhotos')}</button>
         <button className="view-selected" onClick={() => setInputsOpen(true)} disabled={!config.inputPaths.length}>
-          查看已选（{config.inputPaths.length}）
+          {tr('viewSelected', { n: config.inputPaths.length })}
         </button>
-        <span className="hint">可多次添加，重复路径自动跳过</span>
+        <span className="hint">{tr('multiHint')}</span>
       </div>
       {config.inputPaths.length > 0 && (
         <div className="path-list">
           {config.inputPaths.map((p, i) => <div key={i}>{p}
-            <button className="mini" onClick={() => setConfig((c) => ({ ...c, inputPaths: c.inputPaths.filter((_, j) => j !== i) }))}>移除</button>
+            <button className="mini" onClick={() => setConfig((c) => ({ ...c, inputPaths: c.inputPaths.filter((_, j) => j !== i) }))}>{tr('remove')}</button>
           </div>)}
         </div>
       )}
@@ -440,19 +523,23 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
 
       {config.outputMode === OutputMode.CopyToNew && (
         <div className="row">
-          <button onClick={pickOutput}>选择输出文件夹</button>
-          <span>{config.outputDir || '未选择（默认：输入文件夹旁）'}</span>
-          <span className="warn">请勿把输出放到系统位置或重要文件夹</span>
+          <button onClick={pickOutput}>{tr('pickOutput')}</button>
+          <span>{config.outputDir || tr('outputNotSelected')}</span>
+          <span className="warn">{tr('outputWarn')}</span>
         </div>
       )}
-      {config.outputMode === OutputMode.InPlace && <p className="warn">原地整理会移动文件（不复制），请确认已备份重要照片。</p>}
+      {config.outputMode === OutputMode.InPlace && <p className="warn">{tr('inPlaceWarn')}</p>}
       {scanResult?.disk && (
-        <p className="hint">空间预检：约需 {fmtSize(scanResult.disk!.required)}，可用 {fmtSize(scanResult.disk!.available)} {scanResult.disk!.enough ? '✓' : '⚠ 不足'}</p>
+        <p className="hint">{tr('diskCheck', {
+          r: fmtSize(scanResult.disk!.required),
+          a: fmtSize(scanResult.disk!.available),
+          ok: scanResult.disk!.enough ? '✓' : tr('diskLow')
+        })}</p>
       )}
 
       <div className="row">
-        <button className="primary" onClick={doScan} disabled={scanning}>{scanning ? '识别中…（请稍候）' : '预览'}</button>
-        {scanning && <span className="hint">正在读取每张照片的日期，图片多时需要一点时间…</span>}
+        <button className="primary" onClick={doScan} disabled={scanning}>{scanning ? tr('scanning') : tr('preview')}</button>
+        {scanning && <span className="hint">{tr('scanWait')}</span>}
       </div>
 
       {scanned && <PreviewTable entries={entries} setEntries={setEntries} onShowInExplorer={(p) => window.electronAPI.showInExplorer(p)}
@@ -460,8 +547,8 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
 
       {scanned && entries.length > 0 && !running && (
         <div className="row">
-          {config.outputMode === OutputMode.InPlace && <span className="warn">移动不可自动恢复，确认继续？</span>}
-          <button className="primary" onClick={() => run(entries, config)}>确认执行</button>
+          {config.outputMode === OutputMode.InPlace && <span className="warn">{tr('moveWarn')}</span>}
+          <button className="primary" onClick={() => run(entries, config)}>{tr('confirmRun')}</button>
         </div>
       )}
       {running && <ProgressBar progress={progress} onCancel={cancel} />}
@@ -478,6 +565,7 @@ function OrganizePanel({ notify }: { notify: (m: string) => void }) {
 }
 
 function AppendPanel({ notify }: { notify: (m: string) => void }) {
+  const { tr } = useI18n()
   const [targetDir, setTargetDir] = useState('')
   const [mode, setMode] = useState<'follow' | 'manual'>('follow')
   const [placement, setPlacement] = useState<AddPlacement>(AddPlacement.ByDate)
@@ -508,19 +596,19 @@ function AppendPanel({ notify }: { notify: (m: string) => void }) {
     const next = mergePaths(config.inputPaths, fs)
     const skipped = fs.length - (next.length - config.inputPaths.length)
     setConfig((c) => ({ ...c, inputPaths: next }))
-    if (skipped > 0) notify(`已添加 ${fs.length - skipped} 项，跳过 ${skipped} 个重复项`)
+    if (skipped > 0) notify(tr('addedSkipped', { a: fs.length - skipped, s: skipped }))
   }
   const addDir = async () => {
     const d = await window.electronAPI.selectDirectory()
     if (!d) return
     const next = mergePaths(config.inputPaths, [d])
     setConfig((c) => ({ ...c, inputPaths: next }))
-    if (next.length === config.inputPaths.length) notify('该文件夹已在列表中，未重复添加')
+    if (next.length === config.inputPaths.length) notify(tr('duplicateFolder'))
   }
 
   const doScan = async () => {
-    if (!targetDir) { notify('请先选择目标文件夹'); return }
-    if (!config.inputPaths.length) { notify('请先选择要添加的图片'); return }
+    if (!targetDir) { notify(tr('needTarget')); return }
+    if (!config.inputPaths.length) { notify(tr('needImages')); return }
     setScanning(true)
     setScanned(false)
     try {
@@ -528,11 +616,11 @@ function AppendPanel({ notify }: { notify: (m: string) => void }) {
       const r = await window.electronAPI.scan(cfg)
       setEntries(r.images)
       setScanned(true)
-      if (!r.images.length) notify('没有可添加的图片')
-      else notify(`识别到 ${r.images.length} 张图片，请在下方预览并确认`)
-      if (r.nonImages.length) notify(`发现 ${r.nonImages.length} 个非图片文件（不在白名单，已跳过）`)
+      if (!r.images.length) notify(tr('noImagesToAdd'))
+      else notify(tr('recognized', { n: r.images.length }))
+      if (r.nonImages.length) notify(tr('nonImagesSkipped', { n: r.nonImages.length }))
     } catch (e) {
-      notify(`预览失败：${e instanceof Error ? e.message : String(e)}`)
+      notify(tr('previewFail', { msg: e instanceof Error ? e.message : String(e) }))
     } finally {
       setScanning(false)
     }
@@ -541,30 +629,30 @@ function AppendPanel({ notify }: { notify: (m: string) => void }) {
   return (
     <section>
       <div className="row">
-        <button onClick={pickTarget}>选择目标文件夹（必填）</button>
-        <span>{targetDir || '未选择'}</span>
-        <span className="warn">系统位置或重要文件夹请勿选</span>
+        <button onClick={pickTarget}>{tr('targetFolderRequired')}</button>
+        <span>{targetDir || tr('notSelected')}</span>
+        <span className="warn">{tr('systemWarn')}</span>
       </div>
       <div className="row">
-        <button onClick={addImages}>选择图片</button>
-        <button onClick={addDir}>选择文件夹</button>
+        <button onClick={addImages}>{tr('selectImages')}</button>
+        <button onClick={addDir}>{tr('selectFolder')}</button>
         <button className="view-selected" onClick={() => setInputsOpen(true)} disabled={!config.inputPaths.length}>
-          查看已选（{config.inputPaths.length}）
+          {tr('viewSelected', { n: config.inputPaths.length })}
         </button>
       </div>
 
       <div className="config-grid">
-        <label>配置模式
+        <label>{tr('configMode')}
           <select value={mode} onChange={(e) => setMode(e.target.value as 'follow' | 'manual')}>
-            <option value="follow">按钮1：跟随目标文件夹现有格式</option>
-            <option value="manual">按钮2：手动 + 自动（一步弹窗）</option>
+            <option value="follow">{tr('modeFollow')}</option>
+            <option value="manual">{tr('modeManual')}</option>
           </select>
         </label>
-        <label>后缀白名单（选填，逗号分隔）
+        <label>{tr('suffixWhitelist')}
           <input placeholder="jpg,png,heic,cr2" value={(config.suffixWhitelist || []).join(',')}
             onChange={(e) => setConfig((c) => ({ ...c, suffixWhitelist: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))} />
         </label>
-        <label>放入方式
+        <label>{tr('placement')}
           <select value={placement} onChange={(e) => {
             const p = e.target.value as AddPlacement
             setPlacement(p)
@@ -576,30 +664,25 @@ function AppendPanel({ notify }: { notify: (m: string) => void }) {
               targetPath: recomputeTargetPath(entry, targetDir, p, OutputMode.CopyToNew)
             })))
           }}>
-            <option value={AddPlacement.ByDate}>按图片日期在目标文件夹内新建子文件夹</option>
-            <option value={AddPlacement.Flat}>直接放入目标文件夹（无视日期差异，不再建子目录）</option>
+            <option value={AddPlacement.ByDate}>{tr('placeByDate')}</option>
+            <option value={AddPlacement.Flat}>{tr('placeFlat')}</option>
           </select>
         </label>
       </div>
 
       {placement === AddPlacement.Flat && (
-        <p className="hint">
-          已选择「直接放入」：图片会直接放进目标文件夹，<b>不再新建日期子文件夹</b>，
-          因此预览表里的日期栏已禁用（仅作参考）。
-        </p>
+        <p className="hint"><Rich text={tr('flatHint')} /></p>
       )}
 
       <div className="row">
-        <button className="primary" onClick={doScan} disabled={scanning}>{scanning ? '识别中…（请稍候）' : '预览'}</button>
-        {scanning && <span className="hint">正在读取日期，请稍候…</span>}
+        <button className="primary" onClick={doScan} disabled={scanning}>{scanning ? tr('scanning') : tr('preview')}</button>
+        {scanning && <span className="hint">{tr('scanningShort')}</span>}
         {mode === 'manual' && scanned && (
           <button
             onClick={() => setPickerOpen(true)}
             disabled={placement === AddPlacement.Flat}
-            title={placement === AddPlacement.Flat
-              ? '当前为「直接放入目标文件夹」，没有子文件夹可指定，故不可用；如需按文件夹归档请切换放入方式'
-              : '为指定图片手工填写目标子文件夹'}>
-            打开手动配置弹窗
+            title={placement === AddPlacement.Flat ? tr('manualDisabledTitle') : tr('manualTitleAttr')}>
+            {tr('manualPickerBtn')}
           </button>
         )}
       </div>
@@ -608,7 +691,7 @@ function AppendPanel({ notify }: { notify: (m: string) => void }) {
         dateEditable={placement !== AddPlacement.Flat}
         onRecalc={(entry, date) => recomputeTargetPath({ ...entry, date }, targetDir, placement, OutputMode.CopyToNew)} />}
       {scanned && entries.length > 0 && !running && (
-        <div className="row"><button className="primary" onClick={() => run(entries, { ...config, outputDir: targetDir, outputMode: OutputMode.CopyToNew, addPlacement: placement })}>确认执行</button></div>
+        <div className="row"><button className="primary" onClick={() => run(entries, { ...config, outputDir: targetDir, outputMode: OutputMode.CopyToNew, addPlacement: placement })}>{tr('confirmRun')}</button></div>
       )}
       {running && <ProgressBar progress={progress} onCancel={cancel} />}
       {report && <ReportPanel report={report} onClose={() => setReport(null)} />}
@@ -636,6 +719,7 @@ function ManualPicker({ entries, setEntries, targetDir, onClose }: {
   targetDir: string
   onClose: () => void
 }) {
+  const { tr } = useI18n()
   // 每个输入框的值由局部 state 管理，输入时不触发父组件重渲染导致失焦
   const [values, setValues] = useState<Record<string, string>>({})
 
@@ -656,47 +740,42 @@ function ManualPicker({ entries, setEntries, targetDir, onClose }: {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card picker" onClick={(e) => e.stopPropagation()}>
-        <h2>手动指定（被点选图片不参与自动归类）</h2>
-        <p className="hint">必填：指定文件夹。其余选填。填了文件夹的图片将退出自动归类，未填的按时间戳自动归入。</p>
+        <h2>{tr('manualTitle')}</h2>
+        <p className="hint">{tr('manualHint')}</p>
         <div className="picker-list">
           {entries.map((e) => (
             <div key={e.id} className="picker-item">
-              {e.thumbnail ? <img src={e.thumbnail} className="thumb" alt="" /> : <div className="thumb placeholder">无预览</div>}
+              {e.thumbnail ? <img src={e.thumbnail} className="thumb" alt="" /> : <div className="thumb placeholder">{tr('noPreview')}</div>}
               <div className="picker-fields">
                 <div>{basename(e.sourcePath)}</div>
                 <input
-                  placeholder="目标文件夹（必填，如 2023-01-02）"
+                  placeholder={tr('manualPlaceholder')}
                   value={values[e.id] ?? ''}
                   onChange={(ev) => onValueChange(e.id, ev.target.value)}
                 />
               </div>
-              <button className="mini" onClick={() => window.electronAPI.showInExplorer(e.sourcePath)}>定位</button>
+              <button className="mini" onClick={() => window.electronAPI.showInExplorer(e.sourcePath)}>{tr('locate')}</button>
             </div>
           ))}
         </div>
-        <button className="primary" onClick={onClose}>确定（确认时合并）</button>
+        <button className="primary" onClick={onClose}>{tr('manualConfirm')}</button>
       </div>
     </div>
   )
 }
 
 function AboutCard({ onClose }: { onClose: () => void }) {
+  const { tr } = useI18n()
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
-        <h2>关于 / 说明</h2>
+        <h2>{tr('aboutTitle')}</h2>
         <ul>
-          <li>置信度颜色：<b className="high">绿</b>=EXIF拍摄（高），<b className="medium">黄</b>=其他来源（中），<b className="low">红</b>=修改时间（低），<b className="conflict">紫</b>=日期冲突。低/冲突默认不勾选。</li>
-          <li>7 类时间来源（可信度从高到低）：EXIF拍摄 → EXIF数字化 → EXIF时间 → XMP → 文件名日期 → 创建时间 → 修改时间；两来源相差 &gt; 1 天标冲突。</li>
-          <li>未识别与异常日期统一记为 <code>0000-00-00</code>，归入同名文件夹集中处理。</li>
-          <li>工具只依据<b>文件名中标明的日期</b>做自动分类；若命名导致看不出日期，则不参与自动分类，需手动指定。</li>
-          <li>命名格式不限制，但系统非法字符与超长名称会被过滤或提示。</li>
-          <li>输出模式：① 原地整理=移动不复制；② 指定路径=复制。由所选模式决定，与路径无关。</li>
-          <li>「添加到文件夹」的放入方式：<b>按图片日期新建子文件夹</b>＝在目标文件夹内按各图日期继续分层；<b>直接放入</b>＝无视日期差异直接进目标文件夹，不再建子目录（日期不符会在预览标注，由你自行确认）。</li>
-          <li>撤销<b>仅最近一次</b>；不做中断恢复，执行中请勿关闭工具；点取消会回滚本次变化。</li>
-          <li>纯本地：不联网、不登录、不收集任何信息。</li>
+          {([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((n) => (
+            <li key={n}><Rich text={tr(`about${n}`)} /></li>
+          ))}
         </ul>
-        <button onClick={onClose}>关闭</button>
+        <button onClick={onClose}>{tr('close')}</button>
       </div>
     </div>
   )

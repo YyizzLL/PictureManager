@@ -156,6 +156,8 @@ export interface ElectronAPI {
   showInExplorer: (path: string) => Promise<void>
   getThumbnail: (path: string) => Promise<string | null>
   readDirFormat: (dir: string) => Promise<Partial<OrganizeConfig> | null>
+  /** 切换界面语言（同时影响主进程的对话框与错误文案） */
+  setLanguage: (lang: 'zh-CN' | 'en') => Promise<void>
   onProgress: (callback: (info: ProgressInfo) => void) => void
 }
 

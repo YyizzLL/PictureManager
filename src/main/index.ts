@@ -9,8 +9,11 @@ import {
   OutputMode, NamingMode, Confidence, SortStrategy, AddPlacement,
   type OrganizeConfig, type PhotoEntry, type RunReport, type ScanResult, type ProgressInfo
 } from '../shared/types'
+import { t, type Lang } from '../shared/i18n'
 
 const isDev = process.env['NODE_ENV'] === 'development' || !!process.env['ELECTRON_RENDERER_URL']
+/** 当前界面语言，由渲染进程通过 setLanguage 同步 */
+let lang: Lang = 'zh-CN'
 
 import { scanInputs, readDirFormat, estimateSize } from './scanner'
 import { detectDate, closeExiftool, INVALID_DATE } from './dateExtractor'
@@ -87,7 +90,7 @@ app.whenReady().then(() => {
   ipcMain.handle('selectFiles', async () => {
     const r = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: '图片', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp', 'avif', 'jxl', 'heic', 'heif', 'cr2', 'cr3', 'nef', 'arw', 'dng', 'orf', 'raf', 'rw2', 'pef', 'srw', '3fr', 'iiq'] }]
+      filters: [{ name: t(lang, 'filterImages'), extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp', 'avif', 'jxl', 'heic', 'heif', 'cr2', 'cr3', 'nef', 'arw', 'dng', 'orf', 'raf', 'rw2', 'pef', 'srw', '3fr', 'iiq'] }]
     })
     return r.canceled ? [] : r.filePaths
   })
@@ -158,7 +161,7 @@ app.whenReady().then(() => {
 
     return { images: entries, nonImages: scan.nonImages, disk }
     } catch (err) {
-      throw new Error(`扫描失败：${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(t(lang, 'scanFailed', { msg: err instanceof Error ? err.message : String(err) }))
     }
   })
 
@@ -180,7 +183,7 @@ app.whenReady().then(() => {
     const onProgress = (info: ProgressInfo) => {
       mainWindow?.webContents.send('progress', info)
     }
-    const { report, handle } = await runOrganize(entries, config, onProgress, () => cancelRequested)
+    const { report, handle } = await runOrganize(entries, config, onProgress, () => cancelRequested, lang)
     currentHandle = handle
     return report
   })
@@ -196,6 +199,11 @@ app.whenReady().then(() => {
 
   // ---- 在资源管理器中显示 ----
   ipcMain.handle('showInExplorer', async (_e, path: string) => shell.showItemInFolder(path))
+
+  // ---- 语言切换（渲染层切换后同步，影响原生对话框与错误文案）----
+  ipcMain.handle('setLanguage', async (_e, next: Lang) => {
+    lang = next === 'en' ? 'en' : 'zh-CN'
+  })
 
   createWindow()
 })

@@ -9,6 +9,7 @@ import {
   OutputMode, NamingMode, NonImageStrategy, AddPlacement,
   type OrganizeConfig, type RunReport, type PhotoEntry, type ProgressInfo
 } from '../shared/types'
+import { t, type Lang } from '../shared/i18n'
 import { writeManifest, type AppliedOp } from './manifest'
 
 export interface RunHandle {
@@ -84,7 +85,8 @@ export async function runOrganize(
   entries: PhotoEntry[],
   config: OrganizeConfig,
   onProgress?: (info: ProgressInfo) => void,
-  isCancelled?: () => boolean
+  isCancelled?: () => boolean,
+  lang: Lang = 'zh-CN'
 ): Promise<{ report: RunReport; handle: RunHandle }> {
   const report: RunReport = { succeeded: 0, failed: 0, skipped: 0, errors: [] }
   const selected = entries.filter((e) => e.selected)
@@ -170,7 +172,7 @@ export async function runOrganize(
     report.succeeded = 0
     report.failed = 0
     report.skipped = entries.length
-    report.errors = [{ name: '—', path: '—', reason: '已取消，本次变化已回滚' }]
+    report.errors = [{ name: '—', path: '—', reason: t(lang, 'cancelledReason') }]
     return { report, handle }
   }
 
@@ -180,8 +182,8 @@ export async function runOrganize(
       await writeManifest(applied, Array.from(createdDirs))
     } catch (e) {
       report.errors.push({
-        name: 'manifest.json', path: '(应用数据目录)',
-        reason: `清单写入失败，无法撤销：${e instanceof Error ? e.message : String(e)}`
+        name: 'manifest.json', path: t(lang, 'manifestDir'),
+        reason: t(lang, 'manifestFail', { msg: e instanceof Error ? e.message : String(e) })
       })
     }
   }

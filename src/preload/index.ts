@@ -12,6 +12,7 @@ const api: ElectronAPI = {
   showInExplorer: (path) => ipcRenderer.invoke('showInExplorer', path),
   getThumbnail: (path) => ipcRenderer.invoke('getThumbnail', path),
   readDirFormat: (dir) => ipcRenderer.invoke('readDirFormat', dir),
+  setLanguage: (lang) => ipcRenderer.invoke('setLanguage', lang),
   onProgress: (callback: (info: ProgressInfo) => void) => {
     ipcRenderer.on('progress', (_event, info: ProgressInfo) => callback(info))
   }
